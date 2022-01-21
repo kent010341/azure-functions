@@ -13,7 +13,7 @@ while (($#)); do
     esac
 done
 
-if ! is_path_set; then
+if ! $is_path_set; then
     echo -e "\033[1;91m[ERROR] Path should be specified. \033[0m"
     exit 1
 fi
