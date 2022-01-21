@@ -7,6 +7,12 @@ while (($#)); do
         "--path" | "-p")
             shift
             is_path_set=true
+
+            if [ ! $? -eq 0 ]; then
+                echo -e "\033[1;91m[ERROR] Path $1 not found. \033[0m"
+                exit 1
+            fi
+
             cd $1
             shift
         ;;
