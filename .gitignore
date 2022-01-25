@@ -3,4 +3,14 @@ target/
 .idea/
 .project
 .classpath
+.DS_Store
 
+# in folder
+*/target/
+*/*.imi
+*/.idea/
+*/.project
+*/.classpath
+*/local.settings.json
+*/bin/
+*/obj/
