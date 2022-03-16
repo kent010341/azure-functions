@@ -1,0 +1,152 @@
+<html>
+<style type="text/css">
+.hideImg{
+    display: none;
+}
+.showImgInPCRoom1{
+    display: ;
+	position:absolute;
+	top: 100px;
+	left: 50px;
+}
+.showImgInPCRoom2{
+    display: ;
+	position:absolute;
+	top: 100px;
+	left: 80px;
+}
+.showImgInTeaRoom1{
+    display: ;
+	position:absolute;
+	top: 200px;
+	left: 370px;
+}
+.showImgInTeaRoom2{
+    display: ;
+	position:absolute;
+	top: 200px;
+	left: 400px;
+}
+.showImgInRoom1{
+    display: ;
+	position:absolute;
+	top: 500px;
+	left: 370px;
+}
+.showImgInRoom2{
+    display: ;
+	position:absolute;
+	top: 500px;
+	left: 400px;
+}
+.showImgInBigRoom1{
+    display: ;
+	position:absolute;
+	top: 360px;
+	left: 50px;
+}
+.showImgInBigRoom2{
+    display: ;
+	position:absolute;
+	top: 360px;
+	left: 80px;
+}
+</style>
+<body>
+<div><label>目前總人數：</label><label id=total>0</label></div><br>
+<div style="background-image:url('https://i.imgur.com/I1uxXKQ.png');width:790px;height:630px;border:2px #ccc solid;">
+<img id="u1" src="https://i.imgur.com/eMMOpiF.png" alt="user1" class="hideImg"/>
+<img id="u2" src="https://i.imgur.com/p50O030.png" alt="user2" class="hideImg"/>
+</div>
+
+<div><label>辦公空間：</label><label id=OfficeRoom></label></div>
+<div><label>茶水間：</label><label id=OfficePantry></label></div>
+<div><label>小會議室：</label><label id=ConferenceRoom_S></label></div>
+<div><label>中會議室：</label><label id=ConferenceRoom_M></label></div>
+<div><label>大會議室：</label><label id=ConferenceRoom_L></label></div>
+<div><label>機房：</label><label id=DataServerRoom></label></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.7/signalr.min.js"></script>
+<script>
+    var total = 0;
+    var mapLocate1 = new Map();
+    mapLocate1.set("OfficeRoom", false);
+    mapLocate1.set("OfficePantry", false);
+    mapLocate1.set("ConferenceRoom_S", false);
+    mapLocate1.set("ConferenceRoom_M", false);
+    mapLocate1.set("ConferenceRoom_L", false);
+    mapLocate1.set("DataServerRoom", false);
+    var mapLocate2 = new Map();
+    mapLocate2.set("OfficeRoom", false);
+    mapLocate2.set("OfficePantry", false);
+    mapLocate2.set("ConferenceRoom_S", false);
+    mapLocate2.set("ConferenceRoom_M", false);
+    mapLocate2.set("ConferenceRoom_L", false);
+    mapLocate2.set("DataServerRoom", false);
+
+    function updateWithMsg(msg) {
+        var parsedMsg = JSON.parse(msg);
+        var eventData = parsedMsg.data.data;
+        var location = eventData['$sourceId'];
+
+        if (parsedMsg.eventType == 'Microsoft.DigitalTwins.Relationship.Create') {
+            if (eventData['$targetId'] == 'HwacomEmployee_1') {
+                mapLocate1.set(location, true);
+				if (location == 'ConferenceRoom_L') {
+					document.getElementById('u1').className = 'showImgInBigRoom1';
+				} else if (location == 'OfficePantry') {
+					document.getElementById('u1').className = 'showImgInTeaRoom1';
+				}
+                total += 1;
+            } else if (eventData['$targetId'] == 'HwacomEmployee_2') {
+                mapLocate2.set(location, true);
+				if (location == 'ConferenceRoom_L') {
+					document.getElementById('u2').className = 'showImgInBigRoom2';
+				} else if (location == 'OfficePantry') {
+					document.getElementById('u2').className = 'showImgInTeaRoom2';
+				}
+                total += 1;
+            }
+
+        } else if (parsedMsg.eventType == 'Microsoft.DigitalTwins.Relationship.Delete') {
+            if (eventData['$targetId'] == 'HwacomEmployee_1') {
+				document.getElementById('u1').className = 'hideImg';
+                mapLocate1.set(location, false);
+                total -= 1;
+            } else if (eventData['$targetId'] == 'HwacomEmployee_2') {
+				document.getElementById('u2').className = 'hideImg';
+                mapLocate2.set(location, false);
+                total -= 1;
+            }
+        }
+        updateRoom(location);
+    }
+
+    function updateRoom(room) {
+		
+        var s = ""
+        if (mapLocate1.get(room)) {
+            s = s + "員工1";
+        }
+        if (mapLocate2.get(room)) {
+            s = s + "員工2";
+        }
+        document.getElementById(room).innerHTML = s;
+        document.getElementById("total").innerHTML = total;
+    }
+
+    let messages = document.querySelector('#messages');
+    const apiBaseUrl = window.location.origin;
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl(apiBaseUrl + '/api')
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+    connection.on('newMessage', (message) => {
+        console.log(message);
+        updateWithMsg(message);
+    });
+
+    connection.start().catch(console.error);
+</script>
+</body>
+
+</html>
