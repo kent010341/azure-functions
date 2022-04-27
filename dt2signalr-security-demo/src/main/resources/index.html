@@ -1,0 +1,146 @@
+<html>
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+    <style type="text/css">
+        #map {
+            height: 600px;
+        }
+        .leaflet-tooltip {
+            background-color: transparent; 
+            box-shadow: none;
+            border: none;
+        } 
+    </style>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.7/signalr.min.js"></script>
+</head>
+<body>
+<div id="map"></div>
+<div>
+    <button id="s1f" disabled>1F</button>
+    <button id="s2f">2F</button>
+<script>
+    // HwaCom Kaohsiung
+    var hwK = [22.630707, 120.3083372];
+
+    var map = L.map('map').setView(hwK, 19);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '<a href="https://www.openstreetmap.org/">OSM</a>',
+        maxZoom: 19
+    }).addTo(map);
+
+    // outbound
+    var ltLat = 22.630802;
+    var ltLng = 120.308278;
+    var stepLat = 0.000113;
+    var stepLng = 0.000095;
+
+    var indoorRooms = [[], []];
+    // indoor 1f
+    for (var i=0; i<3; i++) {
+        indoorRooms[0].push([]);
+        for (var j=0; j<3; j++) {
+            let bounds = [
+                [ltLat - stepLat * i, ltLng + stepLng * j], 
+                [ltLat - stepLat * (i+1), ltLng + stepLng * (j+1)]
+            ];
+
+            let room = L.rectangle(bounds, {
+                color: "#1375ed", 
+                weight: 3,
+                opacity: 0.9
+            });
+
+            indoorRooms[0][i].push(room);
+            room.addTo(map);
+            room.bindTooltip(
+                '1' + i.toString() + j.toString(),
+                {
+                    direction: 'center',
+                    permanent: true,
+                    interactive: false
+                });
+        }
+    }
+
+    // indoor 2f init
+    for (var i=0; i<2; i++) {
+        indoorRooms[1].push([]);
+        for (var j=0; j<2; j++) {
+            let bounds = [
+                [ltLat - stepLat * i, ltLng + stepLng * j], 
+                [ltLat - stepLat * (i+1), ltLng + stepLng * (j+1)]
+            ];
+
+            let room = L.rectangle(bounds, {
+                color: "#1375ed", 
+                weight: 3,
+                opacity: 0.9
+            });
+
+            indoorRooms[1][i].push(room);
+            room.bindTooltip(
+                '2' + i.toString() + j.toString(),
+                {
+                    direction: 'center',
+                    permanent: true,
+                    interactive: false
+                }
+            );
+        }
+    }
+
+    document.getElementById("s1f").addEventListener('click', function(event) {
+        document.getElementById("s1f").disabled = true;
+        replace(indoorRooms[1], indoorRooms[0]);
+        document.getElementById("s2f").disabled = false;
+    });
+
+    document.getElementById("s2f").addEventListener('click', function(event) {
+        document.getElementById("s2f").disabled = true;
+        replace(indoorRooms[0], indoorRooms[1]);
+        document.getElementById("s1f").disabled = false;
+    });
+
+    function replace(replaced, replaceBy) {
+        replaced.forEach(roomRow => roomRow.forEach(room => room.removeFrom(map)));
+        replaceBy.forEach(roomRow => roomRow.forEach(room => room.addTo(map)));
+    }
+
+    function updateWithMsg(map, indoorRooms, msg) {
+        var parsedMsg = JSON.parse(msg);
+        var eventData = parsedMsg.data.data;
+
+        if (parsedMsg.eventType == 'Microsoft.DigitalTwins.Twin.Update') {
+            let roomId = parsedMsg.subject;
+            let temperature = parseInt(eventData.patch[0].value);
+            let floor = parseInt(roomId.substring(1,2));
+            let roomLat_i = parseInt(roomId.substring(3,4));
+            let roomLng_i = parseInt(roomId.substring(4,5));
+            let room = indoorRooms[floor-1][roomLat_i][roomLng_i];
+
+            if (temperature > 40) {
+                room.setStyle({color: '#ff0000'});
+                room.bringToFront();
+            } else {
+                room.setStyle({color: '#1375ed'});
+            }
+        }
+    }
+
+    const apiBaseUrl = window.location.origin;
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl(apiBaseUrl + '/api')
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+    connection.on('newMessage', (message) => {
+        console.log(message);
+        updateWithMsg(map, indoorRooms, message);
+    });
+
+    connection.start().catch(console.error);
+
+</script>
+</body>
+
+</html>
